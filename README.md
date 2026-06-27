@@ -58,6 +58,7 @@ g++ main.cpp winappinstaller.cpp -std=c++17 -O2 -static -static-libgcc -static-l
 ## Notes
 
 - Before starting an installation, the tool refreshes the `winget` community source.
-- Applications are installed from the `winget` community source using their package IDs.
+- Most applications are installed from the `winget` community source using their package IDs.
+- WhatsApp and Apple Music are installed from the Microsoft Store (`msstore`) source.
 - The installer runs Winget commands sequentially.
 - If an installation fails, review the message printed by Winget in the terminal.

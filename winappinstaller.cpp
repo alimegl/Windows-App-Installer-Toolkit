@@ -57,14 +57,14 @@ void installApplication() {
         std::system("winget source update --name winget");
         std::cout << "Installing all applications..." << std::endl;
         std::system("winget install -e --id Discord.Discord --source winget");
-        std::system("winget install -e --id WhatsApp.WhatsApp --source winget");
-        std::system("winget install -e --id Apple.Music --source winget");
+        std::system("winget install -e --id 9NKSQGP7F2NH --source msstore --accept-source-agreements");
+        std::system("winget install -e --id 9PFHDD62MXS1 --source msstore --accept-source-agreements");
         std::system("winget install -e --id Streamlabs.Streamlabs --source winget");
         std::system("winget install -e --id Valve.Steam --source winget");
         std::system("winget install -e --id Ubisoft.Connect --source winget");
         std::system("winget install -e --id ElectronicArts.EADesktop --source winget");
         std::system("winget install -e --id EpicGames.EpicGamesLauncher --source winget");
-        std::system("winget install -e --id RockstarGames.RockstarGames.Launcher --source winget");
+        std::system("winget install -e --id RockstarGames.Launcher --source winget");
         std::system("winget install -e --id Microsoft.VisualStudioCode --source winget");
         std::system("winget install -e --id Google.Chrome --source winget");
         std::system("winget install -e --id MSYS2.MSYS2 --source winget");
@@ -102,11 +102,11 @@ void installApplication() {
             break;
         case 2:
             std::cout << "Installing Whatsapp..." << std::endl;
-            std::system("winget install -e --id WhatsApp.WhatsApp --source winget");
+            std::system("winget install -e --id 9NKSQGP7F2NH --source msstore --accept-source-agreements");
             break;
         case 3:
             std::cout << "Installing Apple Music..." << std::endl;
-            std::system("winget install -e --id Apple.Music --source winget");
+            std::system("winget install -e --id 9PFHDD62MXS1 --source msstore --accept-source-agreements");
             break;
         case 4:
             std::cout << "Installing Streamlabs OBS..." << std::endl;
@@ -130,7 +130,7 @@ void installApplication() {
             break;
         case 9:
             std::cout << "Installing Rockstar Games Launcher..." << std::endl;
-            std::system("winget install -e --id RockstarGames.RockstarGames.Launcher --source winget");
+            std::system("winget install -e --id RockstarGames.Launcher --source winget");
             break;
         case 10:
             std::cout << "Installing Visual Studio Code..." << std::endl;
