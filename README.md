@@ -48,15 +48,26 @@ If the command is unavailable, install or update **App Installer** from the Micr
 
 ## Building
 
-A C++ compiler and CMake are only required on the computer used to build the project. The resulting executable can then run on other compatible Windows computers without a compiler or compiler runtime.
+MSYS2 C++ compiler and CMake are only required on the computer used to build the project. The resulting executable can then run on other compatible Windows computers without a compiler or compiler runtime.
 
-### Visual Studio / Build Tools
+### Build Tools
 
-Requirements: CMake and either Visual Studio 2022 or Visual Studio Build Tools with the **Desktop development with C++** workload.
+Requirements: MSYS2 with G++ compiler.
+Install MSYS2, open ucrt64 and run the following command:
+```pacman -S --needed \
+mingw-w64-ucrt-x86_64-gcc \
+mingw-w64-ucrt-x86_64-cmake \
+mingw-w64-ucrt-x86_64-ninja
+```
 
 ```powershell
-cmake -S . -B build -A x64
-cmake --build build --config Release --parallel
+cmake -S . -B build -G Ninja `
+-DCMAKE_BUILD_TYPE=Release `
+-DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe `
+-DCMAKE_RC_COMPILER=C:/msys64/ucrt64/bin/windres.exe
+
+cmake --build build --parallel
+cmake --install build --prefix dist
 ```
 
 Output:

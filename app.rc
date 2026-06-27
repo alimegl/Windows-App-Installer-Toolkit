@@ -1,1 +1,41 @@
-1 24 "app.manifest"
+#pragma code_page(65001)
+
+#include <windows.h>
+
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+
+1 RT_MANIFEST "app.manifest"
+
+1 VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040704B0"
+        BEGIN
+            VALUE "CompanyName", "Alim\0"
+            VALUE "FileDescription", "Windows App Installer\0"
+            VALUE "FileVersion", "1.0.0.0\0"
+            VALUE "InternalName", "WindowsAppInstaller\0"
+            VALUE "Language", "Deutsch\0"
+            VALUE "LegalCopyright", "Alim Ergül\0"
+            VALUE "OriginalFilename", "WindowsAppInstaller.exe\0"
+            VALUE "ProductName", "Windows App Installer\0"
+            VALUE "ProductVersion", "1.0.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0407, 1200
+    END
+END
