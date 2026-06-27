@@ -53,20 +53,22 @@ void installApplication() {
     std::cin >> installAll;
 
     if (installAll == 'y' || installAll == 'Y') {
+        std::cout << "Updating the Winget community source..." << std::endl;
+        std::system("winget source update --name winget");
         std::cout << "Installing all applications..." << std::endl;
-        std::system("winget install -e --id Discord.Discord");
-        std::system("winget install -e --id WhatsApp.WhatsApp");
-        std::system("winget install -e --id Apple.Music");
-        std::system("winget install -e --id Streamlabs.Streamlabs");
-        std::system("winget install -e --id Valve.Steam");
-        std::system("winget install -e --id Ubisoft.Connect");
-        std::system("winget install -e --id ElectronicArts.EADesktop");
-        std::system("winget install -e --id EpicGames.EpicGamesLauncher");
-        std::system("winget install -e --id RockstarGames.RockstarGames.Launcher");
-        std::system("winget install -e --id Microsoft.VisualStudioCode");
-        std::system("winget install -e --id Google.Chrome");
-        std::system("winget install -e --id MSYS2.MSYS2");
-        std::system("winget install -e --id Git.Git");
+        std::system("winget install -e --id Discord.Discord --source winget");
+        std::system("winget install -e --id WhatsApp.WhatsApp --source winget");
+        std::system("winget install -e --id Apple.Music --source winget");
+        std::system("winget install -e --id Streamlabs.Streamlabs --source winget");
+        std::system("winget install -e --id Valve.Steam --source winget");
+        std::system("winget install -e --id Ubisoft.Connect --source winget");
+        std::system("winget install -e --id ElectronicArts.EADesktop --source winget");
+        std::system("winget install -e --id EpicGames.EpicGamesLauncher --source winget");
+        std::system("winget install -e --id RockstarGames.RockstarGames.Launcher --source winget");
+        std::system("winget install -e --id Microsoft.VisualStudioCode --source winget");
+        std::system("winget install -e --id Google.Chrome --source winget");
+        std::system("winget install -e --id MSYS2.MSYS2 --source winget");
+        std::system("winget install -e --id Git.Git --source winget");
         return;
     }
 
@@ -85,58 +87,66 @@ void installApplication() {
         return;
     }
 
+    if (applicationChoice < 1 || applicationChoice > 13) {
+        std::cout << "Invalid application number. Please choose 1-13." << std::endl;
+        return;
+    }
+
+    std::cout << "Updating the Winget community source..." << std::endl;
+    std::system("winget source update --name winget");
+
     switch (applicationChoice) {
         case 1:
             std::cout << "Installing Discord..." << std::endl;
-            std::system("winget install -e --id Discord.Discord");
+            std::system("winget install -e --id Discord.Discord --source winget");
             break;
         case 2:
             std::cout << "Installing Whatsapp..." << std::endl;
-            std::system("winget install -e --id WhatsApp.WhatsApp");
+            std::system("winget install -e --id WhatsApp.WhatsApp --source winget");
             break;
         case 3:
             std::cout << "Installing Apple Music..." << std::endl;
-            std::system("winget install -e --id Apple.Music");
+            std::system("winget install -e --id Apple.Music --source winget");
             break;
         case 4:
             std::cout << "Installing Streamlabs OBS..." << std::endl;
-            std::system("winget install -e --id Streamlabs.Streamlabs");
+            std::system("winget install -e --id Streamlabs.Streamlabs --source winget");
             break;
         case 5:
             std::cout << "Installing Steam..." << std::endl;
-            std::system("winget install -e --id Valve.Steam");
+            std::system("winget install -e --id Valve.Steam --source winget");
             break;
         case 6:
             std::cout << "Installing Ubisoft Connect..." << std::endl;
-            std::system("winget install -e --id Ubisoft.Connect");
+            std::system("winget install -e --id Ubisoft.Connect --source winget");
             break;
         case 7:
             std::cout << "Installing EA App..." << std::endl;
-            std::system("winget install -e --id ElectronicArts.EADesktop");
+            std::system("winget install -e --id ElectronicArts.EADesktop --source winget");
             break;
         case 8:
             std::cout << "Installing Epic Games Launcher..." << std::endl;
-            std::system("winget install -e --id EpicGames.EpicGamesLauncher");
+            std::system("winget install -e --id EpicGames.EpicGamesLauncher --source winget");
             break;
         case 9:
             std::cout << "Installing Rockstar Games Launcher..." << std::endl;
-            std::system("winget install -e --id RockstarGames.RockstarGames.Launcher");
+            std::system("winget install -e --id RockstarGames.RockstarGames.Launcher --source winget");
             break;
         case 10:
             std::cout << "Installing Visual Studio Code..." << std::endl;
-            std::system("winget install -e --id Microsoft.VisualStudioCode");
+            std::system("winget install -e --id Microsoft.VisualStudioCode --source winget");
             break;
         case 11:
             std::cout << "Installing Google Chrome..." << std::endl;
-            std::system("winget install -e --id Google.Chrome");
+            std::system("winget install -e --id Google.Chrome --source winget");
             break;
         case 12:
             std::cout << "Installing MSYS2..." << std::endl;
-            std::system("winget install -e --id MSYS2.MSYS2");
+            std::system("winget install -e --id MSYS2.MSYS2 --source winget");
             break;
         case 13:
             std::cout << "Installing Git..." << std::endl;
-            std::system("winget install -e --id Git.Git");
+            std::system("winget install -e --id Git.Git --source winget");
             break;
         default:
             std::cout << "Invalid application number. Please choose 1-13." << std::endl;
