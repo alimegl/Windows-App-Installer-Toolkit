@@ -1,8 +1,18 @@
-# Windows App Installer Toolkit
+# Windows App Installer
 
-A small C++ command-line application that installs commonly used Windows applications through the Windows Package Manager (`winget`). You can install either every listed application or one application selected by number.
+A native Windows GUI for installing commonly used applications through the Windows Package Manager (`winget`). Applications can be selected individually or as a group, while status information and Winget output are displayed directly in the window.
 
-## Supported applications right now
+## Features
+
+- clear application selection using checkboxes
+- **Select all** and **Clear selection** actions
+- background installation to keep the window responsive
+- live Winget output and exit codes
+- automatic light and dark Windows theme support
+- DPI scaling for different display sizes
+- standalone, statically linked executable
+
+## Supported applications
 
 1. Discord
 2. WhatsApp
@@ -18,47 +28,73 @@ A small C++ command-line application that installs commonly used Windows applica
 12. MSYS2
 13. Git
 
-## Requirements for building from Source
+## Runtime requirements
 
-- Windows 10 version 1809 or later (absolutely needed, because since then WinGet is included)
-- An internet connection
-- A C++17-compatible compiler
+No compiler is required to run the compiled `WindowsAppInstaller.exe`. The C/C++ runtime is linked statically, so Visual Studio, MSYS2, MinGW, and their runtime DLLs do not need to be installed on the target computer.
 
-You can check whether Winget is available with:
+Only the following are required:
+
+- 64-bit Windows 10 or Windows 11
+- an internet connection
+- a working `winget` installation
+
+Check whether Winget is available from PowerShell:
 
 ```powershell
 winget --version
 ```
 
-## Build
+If the command is unavailable, install or update **App Installer** from the Microsoft Store.
 
-Open PowerShell in the project directory and compile both source files:
+## Building
+
+A C++ compiler and CMake are only required on the computer used to build the project. The resulting executable can then run on other compatible Windows computers without a compiler or compiler runtime.
+
+### Visual Studio / Build Tools
+
+Requirements: CMake and either Visual Studio 2022 or Visual Studio Build Tools with the **Desktop development with C++** workload.
 
 ```powershell
-g++ main.cpp winappinstaller.cpp -std=c++17 -O2 -static -static-libgcc -static-libstdc++ -o WindowsAppInstaller.exe
+cmake -S . -B build -A x64
+cmake --build build --config Release --parallel
 ```
 
-## Run
+Output:
 
-```powershell
-.\winappinstaller.exe
+```text
+build\Release\WindowsAppInstaller.exe
 ```
+
+### MSYS2 / MinGW-w64
+
+Run the following commands from an UCRT64 shell:
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+```
+
+Output:
+
+```text
+build/WindowsAppInstaller.exe
+```
+
+CMake uses the static runtime (`/MT`) with MSVC and static linking (`-static`, `-static-libgcc`, and `-static-libstdc++`) with MinGW. The resulting executable therefore does not require a compiler runtime on the target computer.
+
+The generated `WindowsAppInstaller.exe` can be copied and distributed on its own. The `build` directory and source files are not required on the target computer.
 
 ## Usage
 
-1. Select `1` in the main menu to open the application list.
-2. Enter `y` to install every listed application.
-3. Enter `n` to install a single application, then enter its number from `1` to `13`.
-4. Select `2` in the main menu to exit.
+1. Select the applications you want to install.
+2. Click **Install selection**.
+3. Follow the progress and details in the output area.
 
-> **Warning:** Choosing `y` immediately starts the installation of every listed application. Winget or Windows may display confirmation or administrator prompts during installation.
+Windows or administrator prompts may appear during installation. Applications are installed sequentially, and a non-zero exit code is treated as an error.
 
+## Technical notes
 
-
-## Notes
-
-- Before starting an installation, the tool refreshes the `winget` community source.
-- Most applications are installed from the `winget` community source using their package IDs.
-- WhatsApp and Apple Music are installed from the Microsoft Store (`msstore`) source.
-- The installer runs Winget commands sequentially.
-- If an installation fails, review the message printed by Winget in the terminal.
+- The interface uses only the native Win32 API and does not require an additional GUI framework.
+- WhatsApp and Apple Music are installed from the `msstore` source; all other packages use the `winget` source.
+- The Winget community source is updated before each installation run.
+- Package and source agreements are accepted automatically, and Winget runs non-interactively.

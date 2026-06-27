@@ -1,8 +1,5 @@
-#include <iostream>
 #include "winappinstaller.h"
 
-int main() {
-    mainMenu();
-    
-    return 0;
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showCommand) {
+    return RunWindowsAppInstaller(instance, showCommand);
 }
