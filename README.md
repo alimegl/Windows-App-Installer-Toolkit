@@ -18,9 +18,9 @@ A small C++ command-line application that installs commonly used Windows applica
 12. MSYS2
 13. Git
 
-## Requirements
+## Requirements for building from Source
 
-- Windows 10 version 1809 or later
+- Windows 10 version 1809 or later (absolutely needed, because since then WinGet is included)
 - An internet connection
 - A C++17-compatible compiler
 
