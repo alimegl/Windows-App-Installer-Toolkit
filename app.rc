@@ -28,7 +28,7 @@ BEGIN
             VALUE "FileVersion", "1.0.0.0\0"
             VALUE "InternalName", "WindowsAppInstaller\0"
             VALUE "Language", "Deutsch\0"
-            VALUE "LegalCopyright", "Alim Ergül\0"
+            VALUE "LegalCopyright", "Alim\0"
             VALUE "OriginalFilename", "WindowsAppInstaller.exe\0"
             VALUE "ProductName", "Windows App Installer\0"
             VALUE "ProductVersion", "1.0.0\0"
