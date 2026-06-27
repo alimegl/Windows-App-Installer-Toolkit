@@ -35,7 +35,7 @@ winget --version
 Open PowerShell in the project directory and compile both source files:
 
 ```powershell
-g++ main.cpp winappinstaller.cpp winappinstaller.exe
+g++ main.cpp winappinstaller.cpp -std=c++17 -O2 -static -static-libgcc -static-libstdc++ -o WindowsAppInstaller.exe
 ```
 
 ## Run
@@ -57,6 +57,7 @@ g++ main.cpp winappinstaller.cpp winappinstaller.exe
 
 ## Notes
 
-- Applications are installed using their Winget package IDs.
+- Before starting an installation, the tool refreshes the `winget` community source.
+- Applications are installed from the `winget` community source using their package IDs.
 - The installer runs Winget commands sequentially.
 - If an installation fails, review the message printed by Winget in the terminal.
