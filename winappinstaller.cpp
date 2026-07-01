@@ -47,8 +47,10 @@ constexpr COLORREF LIGHT_MUTED_COLOR = RGB(91, 101, 117);
 constexpr COLORREF DARK_BACKGROUND_COLOR = RGB(32, 32, 32);
 constexpr COLORREF DARK_TEXT_COLOR = RGB(243, 243, 243);
 constexpr COLORREF DARK_MUTED_COLOR = RGB(184, 188, 194);
-constexpr int BASE_CLIENT_WIDTH = 638;
+constexpr int BASE_CLIENT_WIDTH = 820;
 constexpr int BASE_CLIENT_HEIGHT = 810;
+constexpr int MIN_CLIENT_WIDTH = 638;
+constexpr int MIN_CLIENT_HEIGHT = 700;
 
 std::array<HWND, applications.size()> checkboxHandles{};
 HWND titleLabel = nullptr;
@@ -152,23 +154,37 @@ void UpdateFonts(UINT dpi) {
 }
 
 void LayoutInterface(UINT dpi) {
-    SetControlBounds(titleLabel, 32, 24, 570, 40, dpi);
-    SetControlBounds(descriptionLabel, 34, 67, 570, 25, dpi);
+    RECT clientBounds{};
+    GetClientRect(GetParent(titleLabel), &clientBounds);
+    const int clientWidth = MulDiv(clientBounds.right, USER_DEFAULT_SCREEN_DPI, static_cast<int>(dpi));
+    const int clientHeight = MulDiv(clientBounds.bottom, USER_DEFAULT_SCREEN_DPI, static_cast<int>(dpi));
+    const int contentWidth = clientWidth - 68;
+    const int columnWidth = (contentWidth - 25) / 2;
+
+    SetControlBounds(titleLabel, 32, 24, contentWidth, 40, dpi);
+    SetControlBounds(descriptionLabel, 34, 67, contentWidth, 25, dpi);
     SetControlBounds(sectionLabel, 34, 110, 200, 22, dpi);
 
     for (std::size_t index = 0; index < applications.size(); ++index) {
         const int column = index < 7 ? 0 : 1;
         const int row = column == 0 ? static_cast<int>(index) : static_cast<int>(index) - 7;
-        SetControlBounds(checkboxHandles[index], 34 + column * 300, 140 + row * 42, 275, 28, dpi);
+        SetControlBounds(
+            checkboxHandles[index],
+            34 + column * (columnWidth + 25),
+            140 + row * 42,
+            columnWidth,
+            28,
+            dpi
+        );
     }
 
     SetControlBounds(selectAllButton, 34, 449, 145, 36, dpi);
     SetControlBounds(clearButton, 190, 449, 145, 36, dpi);
-    SetControlBounds(installButton, 402, 449, 200, 36, dpi);
-    SetControlBounds(statusLabel, 34, 510, 568, 28, dpi);
-    SetControlBounds(hintLabel, 34, 542, 568, 22, dpi);
-    SetControlBounds(consoleLabel, 34, 578, 568, 22, dpi);
-    SetControlBounds(outputBox, 34, 606, 568, 174, dpi);
+    SetControlBounds(installButton, clientWidth - 236, 449, 202, 36, dpi);
+    SetControlBounds(statusLabel, 34, 510, contentWidth, 28, dpi);
+    SetControlBounds(hintLabel, 34, 542, contentWidth, 22, dpi);
+    SetControlBounds(consoleLabel, 34, 578, contentWidth, 22, dpi);
+    SetControlBounds(outputBox, 34, 606, contentWidth, clientHeight - 636, dpi);
 }
 
 bool IsWindowsDarkModeEnabled() {
@@ -533,6 +549,28 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             return 0;
         }
 
+        case WM_SIZE:
+            if (wParam != SIZE_MINIMIZED && titleLabel != nullptr) {
+                LayoutInterface(GetDpiForWindow(window));
+            }
+            return 0;
+
+        case WM_GETMINMAXINFO: {
+            MINMAXINFO* sizeInfo = reinterpret_cast<MINMAXINFO*>(lParam);
+            const UINT dpi = GetDpiForWindow(window);
+            RECT minimumBounds{
+                0,
+                0,
+                DpiScale(MIN_CLIENT_WIDTH, dpi),
+                DpiScale(MIN_CLIENT_HEIGHT, dpi)
+            };
+            const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(window, GWL_STYLE));
+            AdjustWindowRectExForDpi(&minimumBounds, style, FALSE, 0, dpi);
+            sizeInfo->ptMinTrackSize.x = minimumBounds.right - minimumBounds.left;
+            sizeInfo->ptMinTrackSize.y = minimumBounds.bottom - minimumBounds.top;
+            return 0;
+        }
+
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
                 case ID_SELECT_ALL:
@@ -629,7 +667,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
 
 int RunWindowsAppInstaller(HINSTANCE instance, int showCommand) {
     const wchar_t windowClass[] = L"WindowsAppInstallerGui";
-    constexpr DWORD windowStyle = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    constexpr DWORD windowStyle = WS_OVERLAPPEDWINDOW;
 
     darkModeEnabled = IsWindowsDarkModeEnabled();
     UpdateThemeColors(darkModeEnabled);
@@ -657,15 +695,24 @@ int RunWindowsAppInstaller(HINSTANCE instance, int showCommand) {
     };
     AdjustWindowRectExForDpi(&windowBounds, windowStyle, FALSE, 0, initialDpi);
 
+    const int windowWidth = windowBounds.right - windowBounds.left;
+    const int windowHeight = windowBounds.bottom - windowBounds.top;
+    POINT primaryMonitorPoint{0, 0};
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(monitorInfo);
+    GetMonitorInfoW(MonitorFromPoint(primaryMonitorPoint, MONITOR_DEFAULTTOPRIMARY), &monitorInfo);
+    const int windowX = monitorInfo.rcWork.left + (monitorInfo.rcWork.right - monitorInfo.rcWork.left - windowWidth) / 2;
+    const int windowY = monitorInfo.rcWork.top + (monitorInfo.rcWork.bottom - monitorInfo.rcWork.top - windowHeight) / 2;
+
     HWND window = CreateWindowExW(
         0,
         windowClass,
         L"Windows App Installer",
         windowStyle,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        windowBounds.right - windowBounds.left,
-        windowBounds.bottom - windowBounds.top,
+        windowX,
+        windowY,
+        windowWidth,
+        windowHeight,
         nullptr,
         nullptr,
         instance,
