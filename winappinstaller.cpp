@@ -887,7 +887,7 @@ LRESULT CALLBACK InfoWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM
             HWND heading = AddLabel(window, L"Windows App Installer Toolkit", titleFont);
             HWND details = AddLabel(
                 window,
-                L"Native Win32-Oberfläche für Software installationen.\nVersion 2.0 by alimegl.",
+                L"Installiert diverse Apps. Sofort.\nVersion 2.0 by alimegl.",
                 normalFont
             );
             HWND closeButton = CreateWindowExW(
