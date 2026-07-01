@@ -1,8 +1,12 @@
 #pragma code_page(65001)
 
 #include <windows.h>
+#include "resource.h"
 
 LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+
+// Main executable and window icon.
+IDI_APP_ICON ICON "winapptoolkit.ico"
 
 1 RT_MANIFEST "app.manifest"
 
@@ -25,13 +29,13 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Alim\0"
             VALUE "FileDescription", "Windows App Installer\0"
-            VALUE "FileVersion", "1.0.0.0\0"
+            VALUE "FileVersion", "2.0.0.0\0"
             VALUE "InternalName", "WindowsAppInstaller\0"
             VALUE "Language", "Deutsch\0"
-            VALUE "LegalCopyright", "Alim\0"
+            VALUE "LegalCopyright", "alimegl\0"
             VALUE "OriginalFilename", "WindowsAppInstaller.exe\0"
             VALUE "ProductName", "Windows App Installer\0"
-            VALUE "ProductVersion", "1.0.0\0"
+            VALUE "ProductVersion", "2.0.0\0"
         END
     END
     BLOCK "VarFileInfo"

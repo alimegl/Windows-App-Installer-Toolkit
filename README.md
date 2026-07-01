@@ -1,14 +1,22 @@
 # Windows App Installer
 
-A native Windows GUI for installing commonly used applications through the Windows Package Manager (`winget`). Applications can be selected individually or as a group, while status information and Winget output are displayed directly in the window.
+<p align="center">
+  <img src="winapptoolkit.ico" alt="Windows App Installer Toolkit icon" width="128" height="128">
+</p>
+
+A native Windows GUI for managing commonly used applications through the Windows Package Manager (`winget`).
 
 ## Features
 
-- clear application selection using checkboxes
-- **Select all** and **Clear selection** actions
-- background installation to keep the window responsive
-- live Winget output and exit codes
-- automatic light and dark Windows theme support
+- detection of installed applications and available updates
+- install, update, uninstall, and cancel actions
+- application search and automatically applied selection profiles
+- overall progress and compact status display without a console area
+- custom Winget package IDs
+- automatic, light, and dark theme modes
+- native **Options** and **Help** menus with a separate settings window
+- direct access to the GitHub releases page for application updates
+- saved selection, options, and window size
 - DPI scaling for different display sizes
 - standalone, statically linked executable
 
@@ -97,9 +105,9 @@ The generated `WindowsAppInstaller.exe` can be copied and distributed on its own
 
 ## Usage
 
-1. Select the applications you want to install.
-2. Click **Install selection**.
-3. Follow the progress and details in the output area.
+1. Select applications directly, through search, or with a profile.
+2. Choose install, update, or uninstall.
+3. Follow the progress in the status area.
 
 Windows or administrator prompts may appear during installation. Applications are installed sequentially, and a non-zero exit code is treated as an error.
 
@@ -108,4 +116,5 @@ Windows or administrator prompts may appear during installation. Applications ar
 - The interface uses only the native Win32 API and does not require an additional GUI framework.
 - WhatsApp and Apple Music are installed from the `msstore` source; all other packages use the `winget` source.
 - The Winget community source is updated before each installation run.
+- Self-updating requires a stable package ID or download URL once this application is published.
 - Package and source agreements are accepted automatically, and Winget runs non-interactively.

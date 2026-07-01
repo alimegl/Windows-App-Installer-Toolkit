@@ -8,6 +8,7 @@ add_executable(
     main.cpp
     winappinstaller.cpp
     winappinstaller.h
+    resource.h
     app.rc
 )
 
@@ -21,7 +22,7 @@ target_compile_definitions(
         NOMINMAX
         _WIN32_WINNT=0x0A00
 )
-target_link_libraries(WindowsAppInstaller PRIVATE advapi32 dwmapi uxtheme)
+target_link_libraries(WindowsAppInstaller PRIVATE advapi32 comctl32 dwmapi uxtheme)
 
 if(MSVC)
     target_compile_options(WindowsAppInstaller PRIVATE /W4 /permissive-)

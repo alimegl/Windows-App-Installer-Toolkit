@@ -4,3 +4,4 @@
 /.vscode/
 *.user
 *.suo
+/build-check
