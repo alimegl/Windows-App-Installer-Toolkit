@@ -1,5 +1,8 @@
 #include "winappinstaller.h"
+#include "applications.h"
 #include "resource.h"
+#include "settings.h"
+#include "winget_service.h"
 
 #include <dwmapi.h>
 #include <commctrl.h>
@@ -8,7 +11,6 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cwctype>
 #include <cstring>
 #include <string>
@@ -16,29 +18,6 @@
 #include <vector>
 
 namespace {
-
-struct Application {
-    const wchar_t* name;
-    const wchar_t* packageId;
-    const wchar_t* source;
-    int profile;
-};
-
-constexpr std::array<Application, 13> applications{{
-    {L"Discord", L"Discord.Discord", L"winget", 1},
-    {L"WhatsApp", L"9NKSQGP7F2NH", L"msstore", 1},
-    {L"Apple Music", L"9PFHDD62MXS1", L"msstore", 1},
-    {L"Streamlabs OBS", L"Streamlabs.Streamlabs", L"winget", 2},
-    {L"Steam", L"Valve.Steam", L"winget", 2},
-    {L"Ubisoft Connect", L"Ubisoft.Connect", L"winget", 2},
-    {L"EA App", L"ElectronicArts.EADesktop", L"winget", 2},
-    {L"Epic Games Launcher", L"EpicGames.EpicGamesLauncher", L"winget", 2},
-    {L"Rockstar Games Launcher", L"RockstarGames.Launcher", L"winget", 2},
-    {L"Visual Studio Code", L"Microsoft.VisualStudioCode", L"winget", 3},
-    {L"Google Chrome", L"Google.Chrome", L"winget", 1},
-    {L"MSYS2", L"MSYS2.MSYS2", L"winget", 3},
-    {L"Git", L"Git.Git", L"winget", 3},
-}};
 
 constexpr int ID_CHECKBOX_FIRST = 1000;
 constexpr int ID_SELECT_ALL = 2000;
@@ -57,13 +36,7 @@ constexpr int ID_MENU_INFO = 3002;
 constexpr int ID_OPTIONS_APPLY = 3003;
 constexpr int ID_OPTIONS_CLOSE = 3004;
 constexpr int ID_INFO_CLOSE = 3005;
-constexpr UINT WM_APP_STATUS = WM_APP + 1;
-constexpr UINT WM_APP_FINISHED = WM_APP + 2;
-constexpr UINT WM_APP_SCAN_FINISHED = WM_APP + 3;
-constexpr UINT WM_APP_PROGRESS = WM_APP + 4;
-
-enum class Operation { Scan, Install, Update, Uninstall };
-
+using Operation = winget_service::Operation;
 constexpr COLORREF LIGHT_BACKGROUND_COLOR = RGB(245, 247, 250);
 constexpr COLORREF LIGHT_TEXT_COLOR = RGB(28, 35, 48);
 constexpr COLORREF LIGHT_MUTED_COLOR = RGB(91, 101, 117);
@@ -103,12 +76,6 @@ HFONT normalFont = nullptr;
 HFONT smallFont = nullptr;
 HFONT menuFont = nullptr;
 HBRUSH backgroundBrush = nullptr;
-std::atomic_bool installationRunning{false};
-std::atomic_bool cancellationRequested{false};
-std::atomic<HANDLE> runningProcess{nullptr};
-std::array<bool, applications.size()> installedApplications{};
-std::array<bool, applications.size()> updateableApplications{};
-std::atomic_bool restartRequired{false};
 bool darkModeEnabled = false;
 int themePreference = 0;
 COLORREF backgroundColor = LIGHT_BACKGROUND_COLOR;
@@ -146,13 +113,6 @@ void SetNativeAppMode(PreferredAppMode mode) {
         flushMenuThemes();
     }
 }
-
-struct InstallJob {
-    HWND window;
-    std::vector<int> selectedApplications;
-    Operation operation;
-    std::wstring customPackage;
-};
 
 void SetFont(HWND control, HFONT font) {
     SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
@@ -563,193 +523,6 @@ void DrawMenuItem(const DRAWITEMSTRUCT* drawItem) {
     }
 }
 
-void PostStatus(HWND window, std::wstring text) {
-    PostMessageW(window, WM_APP_STATUS, 0, reinterpret_cast<LPARAM>(new std::wstring(std::move(text))));
-}
-
-std::wstring DecodeConsoleOutput(const char* bytes, int length) {
-    int characterCount = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes, length, nullptr, 0);
-    UINT codePage = CP_UTF8;
-    DWORD flags = MB_ERR_INVALID_CHARS;
-
-    if (characterCount == 0) {
-        codePage = GetOEMCP();
-        flags = 0;
-        characterCount = MultiByteToWideChar(codePage, flags, bytes, length, nullptr, 0);
-    }
-
-    if (characterCount == 0) {
-        return {};
-    }
-
-    std::wstring text(static_cast<std::size_t>(characterCount), L'\0');
-    MultiByteToWideChar(codePage, flags, bytes, length, text.data(), characterCount);
-    return text;
-}
-
-bool IsWingetAvailable() {
-    return SearchPathW(nullptr, L"winget.exe", nullptr, 0, nullptr, nullptr) > 0;
-}
-
-bool RunCommand(HWND window, const std::wstring& arguments, DWORD& exitCode, std::wstring* capturedOutput = nullptr) {
-    (void)window;
-    std::wstring commandLine = L"winget.exe " + arguments;
-    std::vector<wchar_t> writableCommand(commandLine.begin(), commandLine.end());
-    writableCommand.push_back(L'\0');
-
-    SECURITY_ATTRIBUTES securityAttributes{};
-    securityAttributes.nLength = sizeof(securityAttributes);
-    securityAttributes.bInheritHandle = TRUE;
-
-    HANDLE readPipe = nullptr;
-    HANDLE writePipe = nullptr;
-    if (!CreatePipe(&readPipe, &writePipe, &securityAttributes, 0)) {
-        exitCode = GetLastError();
-        return false;
-    }
-    SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
-
-    HANDLE nullInput = CreateFileW(
-        L"NUL",
-        GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        &securityAttributes,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        nullptr
-    );
-
-    STARTUPINFOW startupInfo{};
-    startupInfo.cb = sizeof(startupInfo);
-    startupInfo.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
-    startupInfo.wShowWindow = SW_HIDE;
-    startupInfo.hStdInput = nullInput;
-    startupInfo.hStdOutput = writePipe;
-    startupInfo.hStdError = writePipe;
-
-    PROCESS_INFORMATION processInfo{};
-    const BOOL processCreated = CreateProcessW(
-        nullptr,
-        writableCommand.data(),
-        nullptr,
-        nullptr,
-        TRUE,
-        CREATE_NO_WINDOW,
-        nullptr,
-        nullptr,
-        &startupInfo,
-        &processInfo
-    );
-
-    CloseHandle(writePipe);
-    if (nullInput != INVALID_HANDLE_VALUE) {
-        CloseHandle(nullInput);
-    }
-
-    if (!processCreated) {
-        exitCode = GetLastError();
-        CloseHandle(readPipe);
-        return false;
-    }
-
-    CloseHandle(processInfo.hThread);
-    runningProcess.store(processInfo.hProcess);
-
-    std::array<char, 4096> outputBuffer{};
-    DWORD bytesRead = 0;
-    while (ReadFile(readPipe, outputBuffer.data(), static_cast<DWORD>(outputBuffer.size()), &bytesRead, nullptr)
-           && bytesRead > 0) {
-        const std::wstring output = DecodeConsoleOutput(outputBuffer.data(), static_cast<int>(bytesRead));
-        if (capturedOutput != nullptr) {
-            *capturedOutput += output;
-        }
-    }
-    CloseHandle(readPipe);
-
-    WaitForSingleObject(processInfo.hProcess, INFINITE);
-    const bool receivedExitCode = GetExitCodeProcess(processInfo.hProcess, &exitCode) != FALSE;
-    runningProcess.store(nullptr);
-    CloseHandle(processInfo.hProcess);
-
-    if (exitCode == 3010 || exitCode == 1641 || exitCode == 0x8A15010B) {
-        restartRequired = true;
-    }
-    return receivedExitCode && exitCode == 0;
-}
-
-DWORD WINAPI InstallWorker(void* parameter) {
-    InstallJob* job = static_cast<InstallJob*>(parameter);
-    DWORD exitCode = 0;
-
-    if (job->operation == Operation::Scan) {
-        std::wstring listed;
-        std::wstring upgrades;
-        PostStatus(job->window, L"Installierte Apps und Updates werden geprüft …");
-        RunCommand(job->window, L"list --accept-source-agreements --disable-interactivity", exitCode, &listed);
-        RunCommand(job->window, L"upgrade --accept-source-agreements --disable-interactivity", exitCode, &upgrades);
-        std::transform(listed.begin(), listed.end(), listed.begin(), towlower);
-        std::transform(upgrades.begin(), upgrades.end(), upgrades.begin(), towlower);
-        for (std::size_t index = 0; index < applications.size(); ++index) {
-            std::wstring id = applications[index].packageId;
-            std::transform(id.begin(), id.end(), id.begin(), towlower);
-            installedApplications[index] = listed.find(id) != std::wstring::npos;
-            updateableApplications[index] = upgrades.find(id) != std::wstring::npos;
-        }
-        PostMessageW(job->window, WM_APP_SCAN_FINISHED, 0, 0);
-        delete job;
-        return 0;
-    }
-
-    if (job->operation == Operation::Install) {
-        PostStatus(job->window, L"Winget-Paketquelle wird aktualisiert …");
-        RunCommand(job->window, L"source update --name winget --disable-interactivity", exitCode);
-    }
-
-    int successful = 0;
-    const int total = static_cast<int>(job->selectedApplications.size()) + (job->customPackage.empty() ? 0 : 1);
-    int current = 0;
-    auto runPackage = [&](const std::wstring& name, const std::wstring& id, const std::wstring& source) {
-        if (cancellationRequested.load()) {
-            return;
-        }
-        ++current;
-        PostMessageW(job->window, WM_APP_PROGRESS, current, total);
-        const wchar_t* verb = job->operation == Operation::Install ? L"Installiere "
-            : job->operation == Operation::Update ? L"Aktualisiere " : L"Deinstalliere ";
-        PostStatus(job->window, verb + name + L" …");
-        std::wstring arguments = job->operation == Operation::Install ? L"install" :
-            job->operation == Operation::Update ? L"upgrade" : L"uninstall";
-        arguments += L" -e --id \"" + id + L"\"";
-        if (!source.empty() && job->operation != Operation::Uninstall) {
-            arguments += L" --source \"" + source + L"\"";
-        }
-        arguments += L" --accept-source-agreements --disable-interactivity";
-        if (job->operation != Operation::Uninstall) {
-            arguments += L" --accept-package-agreements";
-        }
-        if (RunCommand(job->window, arguments, exitCode)) {
-            ++successful;
-        }
-    };
-
-    for (int index : job->selectedApplications) {
-        const Application& application = applications[static_cast<std::size_t>(index)];
-        runPackage(application.name, application.packageId, application.source);
-    }
-    if (!job->customPackage.empty()) {
-        runPackage(job->customPackage, job->customPackage, L"");
-    }
-
-    PostMessageW(
-        job->window,
-        WM_APP_FINISHED,
-        static_cast<WPARAM>(successful),
-        static_cast<LPARAM>(total)
-    );
-    delete job;
-    return 0;
-}
-
 void SetInstallerControlsEnabled(bool enabled) {
     for (HWND checkbox : checkboxHandles) {
         EnableWindow(checkbox, enabled);
@@ -770,7 +543,7 @@ void SelectAll(bool selected) {
 }
 
 void StartOperation(HWND window, Operation operation) {
-    if (!IsWingetAvailable()) {
+    if (!winget_service::IsAvailable()) {
         MessageBoxW(
             window,
             L"Winget wurde nicht gefunden. Bitte installiere oder aktualisiere zuerst den Windows App Installer.",
@@ -795,28 +568,14 @@ void StartOperation(HWND window, Operation operation) {
         return;
     }
 
-    installationRunning = true;
-    restartRequired = false;
-    cancellationRequested = false;
     SetInstallerControlsEnabled(false);
     SendMessageW(progressBar, PBM_SETPOS, 0, 0);
     SetWindowTextW(statusLabel, operation == Operation::Scan ? L"Prüfung wird vorbereitet …" : L"Auftrag wird vorbereitet …");
 
-    InstallJob* job = new InstallJob{
-        window,
-        std::move(selected),
-        operation,
-        customId
-    };
-    HANDLE thread = CreateThread(nullptr, 0, InstallWorker, job, 0, nullptr);
-    if (thread == nullptr) {
-        delete job;
-        installationRunning = false;
+    if (!winget_service::Start(window, operation, std::move(selected), customId)) {
         SetInstallerControlsEnabled(true);
         SetWindowTextW(statusLabel, L"Die Installation konnte nicht gestartet werden.");
-        return;
     }
-    CloseHandle(thread);
 }
 
 std::wstring GetControlText(HWND control) {
@@ -830,6 +589,8 @@ std::wstring GetControlText(HWND control) {
 }
 
 void UpdateApplicationLabels() {
+    const auto& installedApplications = winget_service::InstalledApplications();
+    const auto& updateableApplications = winget_service::UpdateableApplications();
     for (std::size_t index = 0; index < applications.size(); ++index) {
         std::wstring label = applications[index].name;
         if (updateableApplications[index]) {
@@ -865,28 +626,11 @@ void ApplyProfile() {
 }
 
 void SaveSettings(HWND window) {
-    HKEY key{};
-    if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\WindowsAppInstallerGui", 0, nullptr, 0, KEY_WRITE, nullptr, &key, nullptr) != ERROR_SUCCESS) return;
-    DWORD selectedMask = 0;
-    for (std::size_t index = 0; index < applications.size(); ++index) {
-        if (SendMessageW(checkboxHandles[index], BM_GETCHECK, 0, 0) == BST_CHECKED) selectedMask |= 1u << index;
-    }
-    const DWORD theme = static_cast<DWORD>(themePreference);
-    RECT bounds{};
-    GetWindowRect(window, &bounds);
-    DWORD values[] = {selectedMask, theme, static_cast<DWORD>(bounds.right - bounds.left), static_cast<DWORD>(bounds.bottom - bounds.top)};
-    const wchar_t* names[] = {L"Selection", L"Theme", L"Width", L"Height"};
-    for (int i = 0; i < 4; ++i) RegSetValueExW(key, names[i], 0, REG_DWORD, reinterpret_cast<const BYTE*>(&values[i]), sizeof(DWORD));
-    RegCloseKey(key);
+    settings::SaveInterface(window, checkboxHandles, themePreference);
 }
 
 void LoadSettings() {
-    DWORD mask = 0, theme = 0, size = sizeof(DWORD);
-    RegGetValueW(HKEY_CURRENT_USER, L"Software\\WindowsAppInstallerGui", L"Selection", RRF_RT_REG_DWORD, nullptr, &mask, &size);
-    size = sizeof(DWORD);
-    RegGetValueW(HKEY_CURRENT_USER, L"Software\\WindowsAppInstallerGui", L"Theme", RRF_RT_REG_DWORD, nullptr, &theme, &size);
-    for (std::size_t index = 0; index < applications.size(); ++index) SendMessageW(checkboxHandles[index], BM_SETCHECK, (mask & (1u << index)) ? BST_CHECKED : BST_UNCHECKED, 0);
-    themePreference = static_cast<int>(std::min<DWORD>(theme, 2));
+    settings::LoadInterface(checkboxHandles, themePreference);
 }
 
 void CreateInterface(HWND window) {
@@ -1316,9 +1060,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                     }
                     return 0;
                 case ID_CANCEL: {
-                    cancellationRequested = true;
-                    HANDLE process = runningProcess.load();
-                    if (process != nullptr) TerminateProcess(process, ERROR_CANCELLED);
+                    winget_service::Cancel();
                     SetWindowTextW(statusLabel, L"Auftrag wird abgebrochen …");
                     return 0;
                 }
@@ -1328,41 +1070,39 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             }
             break;
 
-        case WM_APP_STATUS: {
+        case winget_service::STATUS_MESSAGE: {
             std::wstring* status = reinterpret_cast<std::wstring*>(lParam);
             SetWindowTextW(statusLabel, status->c_str());
             delete status;
             return 0;
         }
 
-        case WM_APP_PROGRESS:
+        case winget_service::PROGRESS_MESSAGE:
             SendMessageW(progressBar, PBM_SETPOS, lParam == 0 ? 0 : static_cast<int>(wParam * 100 / lParam), 0);
             return 0;
 
-        case WM_APP_SCAN_FINISHED:
-            installationRunning = false;
+        case winget_service::SCAN_FINISHED_MESSAGE:
             SetInstallerControlsEnabled(true);
             UpdateApplicationLabels();
             SetWindowTextW(statusLabel, L"Prüfung abgeschlossen. Installierte Apps und verfügbare Updates sind markiert.");
             SendMessageW(progressBar, PBM_SETPOS, 100, 0);
             return 0;
 
-        case WM_APP_FINISHED: {
+        case winget_service::FINISHED_MESSAGE: {
             const int successful = static_cast<int>(wParam);
             const int total = static_cast<int>(lParam);
-            installationRunning = false;
             SetInstallerControlsEnabled(true);
             SendMessageW(progressBar, PBM_SETPOS, 100, 0);
 
             std::wstring result = std::to_wstring(successful) + L" von " + std::to_wstring(total);
-            result += cancellationRequested.load() ? L" Vorgängen vor dem Abbruch erfolgreich." : L" Vorgängen erfolgreich.";
-            if (restartRequired.load()) result += L" Ein Windows-Neustart wird empfohlen.";
+            result += winget_service::WasCancelled() ? L" Vorgängen vor dem Abbruch erfolgreich." : L" Vorgängen erfolgreich.";
+            if (winget_service::RestartRequired()) result += L" Ein Windows-Neustart wird empfohlen.";
             SetWindowTextW(statusLabel, result.c_str());
 
             MessageBoxW(
                 window,
                 result.c_str(),
-                cancellationRequested.load() ? L"Auftrag abgebrochen" : (successful == total ? L"Auftrag abgeschlossen" : L"Auftrag mit Fehlern abgeschlossen"),
+                winget_service::WasCancelled() ? L"Auftrag abgebrochen" : (successful == total ? L"Auftrag abgeschlossen" : L"Auftrag mit Fehlern abgeschlossen"),
                 MB_OK | (successful == total ? MB_ICONINFORMATION : MB_ICONWARNING)
             );
             return 0;
@@ -1423,11 +1163,9 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         }
 
         case WM_CLOSE:
-            if (installationRunning) {
+            if (winget_service::IsRunning()) {
                 if (MessageBoxW(window, L"Der laufende Auftrag wird abgebrochen. Fenster wirklich schließen?", L"Auftrag läuft", MB_YESNO | MB_ICONWARNING) != IDYES) return 0;
-                cancellationRequested = true;
-                HANDLE process = runningProcess.load();
-                if (process != nullptr) TerminateProcess(process, ERROR_CANCELLED);
+                winget_service::Cancel();
             }
             SaveSettings(window);
             DestroyWindow(window);
@@ -1496,20 +1234,15 @@ int RunWindowsAppInstaller(HINSTANCE instance, int showCommand) {
 
     int windowWidth = windowBounds.right - windowBounds.left;
     int windowHeight = windowBounds.bottom - windowBounds.top;
-    DWORD savedWidth = 0;
-    DWORD savedHeight = 0;
-    DWORD savedSize = sizeof(DWORD);
-    RegGetValueW(HKEY_CURRENT_USER, L"Software\\WindowsAppInstallerGui", L"Width", RRF_RT_REG_DWORD, nullptr, &savedWidth, &savedSize);
-    savedSize = sizeof(DWORD);
-    RegGetValueW(HKEY_CURRENT_USER, L"Software\\WindowsAppInstallerGui", L"Height", RRF_RT_REG_DWORD, nullptr, &savedHeight, &savedSize);
+    const SIZE savedWindowSize = settings::LoadWindowSize();
     POINT primaryMonitorPoint{0, 0};
     MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(monitorInfo);
     GetMonitorInfoW(MonitorFromPoint(primaryMonitorPoint, MONITOR_DEFAULTTOPRIMARY), &monitorInfo);
     const int workWidth = monitorInfo.rcWork.right - monitorInfo.rcWork.left;
     const int workHeight = monitorInfo.rcWork.bottom - monitorInfo.rcWork.top;
-    if (savedWidth >= static_cast<DWORD>(DpiScale(MIN_CLIENT_WIDTH, initialDpi))) windowWidth = std::min(static_cast<int>(savedWidth), workWidth);
-    if (savedHeight >= static_cast<DWORD>(DpiScale(MIN_CLIENT_HEIGHT, initialDpi))) windowHeight = std::min(static_cast<int>(savedHeight), workHeight);
+    if (savedWindowSize.cx >= DpiScale(MIN_CLIENT_WIDTH, initialDpi)) windowWidth = std::min(static_cast<int>(savedWindowSize.cx), workWidth);
+    if (savedWindowSize.cy >= DpiScale(MIN_CLIENT_HEIGHT, initialDpi)) windowHeight = std::min(static_cast<int>(savedWindowSize.cy), workHeight);
     const int windowX = monitorInfo.rcWork.left + (monitorInfo.rcWork.right - monitorInfo.rcWork.left - windowWidth) / 2;
     const int windowY = monitorInfo.rcWork.top + (monitorInfo.rcWork.bottom - monitorInfo.rcWork.top - windowHeight) / 2;
 

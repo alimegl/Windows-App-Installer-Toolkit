@@ -103,6 +103,15 @@ CMake uses the static runtime (`/MT`) with MSVC and static linking (`-static`, `
 
 The generated `WindowsAppInstaller.exe` can be copied and distributed on its own. The `build` directory and source files are not required on the target computer.
 
+## Project structure
+
+- `main.cpp` — Windows application entry point
+- `winappinstaller.cpp/.h` — main window, native controls, themes, menus, and dialogs
+- `applications.h` — application catalog and Winget package metadata
+- `winget_service.cpp/.h` — background scanning, installation, updates, uninstallation, progress, and cancellation
+- `settings.cpp/.h` — persisted selection, theme, and window size in the Windows registry
+- `app.rc`, `resource.h`, and `app.manifest` — executable metadata, icon, and Windows manifest
+
 ## Usage
 
 1. Select applications directly, through search, or with a profile.

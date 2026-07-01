@@ -6,6 +6,11 @@ add_executable(
     WindowsAppInstaller
     WIN32
     main.cpp
+    applications.h
+    settings.cpp
+    settings.h
+    winget_service.cpp
+    winget_service.h
     winappinstaller.cpp
     winappinstaller.h
     resource.h
