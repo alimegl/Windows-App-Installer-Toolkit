@@ -81,7 +81,7 @@ cmake --install build --prefix dist
 Output:
 
 ```text
-build\Release\WindowsAppInstaller.exe
+build\WindowsAppInstaller.exe
 ```
 
 ### MSYS2 / MinGW-w64
@@ -116,5 +116,5 @@ Windows or administrator prompts may appear during installation. Applications ar
 - The interface uses only the native Win32 API and does not require an additional GUI framework.
 - WhatsApp and Apple Music are installed from the `msstore` source; all other packages use the `winget` source.
 - The Winget community source is updated before each installation run.
-- Self-updating requires a stable package ID or download URL once this application is published.
+- **Help → App Update** opens the GitHub releases page in the default browser.
 - Package and source agreements are accepted automatically, and Winget runs non-interactively.

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(WindowsAppInstallerGui VERSION 1.0.0 LANGUAGES CXX RC)
+project(WindowsAppInstallerGui VERSION 2.0.0 LANGUAGES CXX RC)
 
 add_executable(
     WindowsAppInstaller
